@@ -7,40 +7,90 @@ const Group = require('./Group');
 const Announcement = require('./Announcement');
 const Event = require('./Event');
 const Attendance = require('./Attendance');
-const Role = require('./Role'); // Ajouté
-const GroupRole = require('./GroupRole'); // Ajouté
-const MemberGroupRole = require('./MemberGroupRole'); // Ajouté
+const Role = require('./Role');
+const GroupRole = require('./GroupRole');
+const MemberGroupRole = require('./MemberGroupRole');
 
-// Définir les relations
+// 1. Relations Membres <-> Rôles
+Member.belongsTo(Role, {
+  foreignKey: 'roleId',
+  onDelete: 'SET NULL', // Garde les membres si rôle supprimé
+  as: 'globalRole' // Alias pour les requêtes
+});
 
-// Un Membre a un Rôle
-Member.belongsTo(Role, { foreignKey: 'roleId' });
-Role.hasMany(Member, { foreignKey: 'roleId' });
+Role.hasMany(Member, {
+  foreignKey: 'roleId',
+  onDelete: 'SET NULL'
+});
 
-// Un Membre peut appartenir à plusieurs Groupes avec des Rôles spécifiques
-Member.belongsToMany(Group, { through: MemberGroupRole, foreignKey: 'memberId' });
-Group.belongsToMany(Member, { through: MemberGroupRole, foreignKey: 'groupId' });
+// 2. Système de rôles par groupe
+GroupRole.belongsTo(Group, {
+  foreignKey: 'groupId',
+  onDelete: 'CASCADE' // Supprime les rôles si groupe supprimé
+});
 
-// Un Rôle spécifique à un Groupe est associé à un Membre dans un Groupe
-MemberGroupRole.belongsTo(GroupRole, { foreignKey: 'groupRoleId' });
-GroupRole.hasMany(MemberGroupRole, { foreignKey: 'groupRoleId' });
+Group.hasMany(GroupRole, {
+  foreignKey: 'groupId',
+  as: 'customRoles'
+});
 
-// Une Annonce est créée par un Membre
-Announcement.belongsTo(Member, { foreignKey: 'authorId' });
-Member.hasMany(Announcement, { foreignKey: 'authorId' });
+// 3. Assignation des rôles aux membres
+MemberGroupRole.belongsTo(GroupRole, {
+  foreignKey: 'groupRoleId',
+  onDelete: 'CASCADE'
+});
 
-// Un Événement est organisé par un Groupe
-Event.belongsTo(Group, { foreignKey: 'groupId' });
-Group.hasMany(Event, { foreignKey: 'groupId' });
+MemberGroupRole.belongsTo(Member, {
+  foreignKey: 'memberId',
+  onDelete: 'CASCADE'
+});
 
-// Une Présence est liée à un Membre et à un Événement
-Attendance.belongsTo(Member, { foreignKey: 'memberId' });
-Member.hasMany(Attendance, { foreignKey: 'memberId' });
+// 4. Relations Many-to-Many avec contraintes
+Member.belongsToMany(Group, {
+  through: MemberGroupRole,
+  foreignKey: 'memberId',
+  otherKey: 'groupId',
+  onDelete: 'CASCADE'
+});
 
-Attendance.belongsTo(Event, { foreignKey: 'eventId' });
-Event.hasMany(Attendance, { foreignKey: 'eventId' });
+Group.belongsToMany(Member, {
+  through: MemberGroupRole,
+  foreignKey: 'groupId',
+  otherKey: 'memberId',
+  onDelete: 'CASCADE'
+});
 
-// Exporter les modèles
+// 5. Relations Annonces/Événements
+Announcement.belongsTo(Member, {
+  foreignKey: 'authorId',
+  as: 'author',
+  onDelete: 'SET NULL' // Garde l'annonce si membre supprimé
+});
+
+Member.hasMany(Announcement, {
+  foreignKey: 'authorId',
+  as: 'announcements'
+});
+
+// 6. Présence aux événements
+Attendance.belongsTo(Event, {
+  foreignKey: 'eventId',
+  onDelete: 'CASCADE' // Supprime les présences si événement supprimé
+});
+
+Attendance.belongsTo(Member, {
+  foreignKey: 'memberId',
+  onDelete: 'CASCADE'
+});
+
+// Ajouter des index pour les recherches
+Member.addScope('withRoles', {
+  include: [{
+    model: Role,
+    as: 'globalRole'
+  }]
+});
+
 module.exports = {
   sequelize,
   Member,
@@ -48,7 +98,7 @@ module.exports = {
   Announcement,
   Event,
   Attendance,
-  Role, // Ajouté
-  GroupRole, // Ajouté
-  MemberGroupRole, // Ajouté
+  Role,
+  GroupRole,
+  MemberGroupRole
 };
