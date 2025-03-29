@@ -1,67 +1,94 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://172.16.5.13:5000';
+// 1. Configuration de l'API
+const API_URL = 'http://192.168.1.65:5000/api/auth';
 
-// Fonction pour s'inscrire
+// 2. Service d'inscription
 export const register = async (userData) => {
   try {
-    const response = await axios.post(`${API_URL}/api/auth/register`, userData);
-    return response.data; 
-  } catch (error) {
-    console.error('Erreur lors de l\'inscription:', error);
-    throw error;
-  }
-};
+    const response = await axios.post(`${API_URL}/register`, {
+      ...userData,
+      name: userData.name.trim()
+    });
 
-// Fonction pour se connecter
-export const login = async (credentials) => {
-  try {
-    const response = await axios.post(`${API_URL}/api/auth/login`, credentials);
-    const { token, user } = response.data;
-
-    if (!user) {
-      throw new Error("L'utilisateur est invalide.");
+    if (!response.data.token) {
+      throw new Error('Erreur lors de la création du compte');
     }
 
-    await AsyncStorage.setItem('userToken', JSON.stringify({ token, user })); // Stocker token + user
+    await AsyncStorage.setItem('userToken', response.data.token);
+    await AsyncStorage.setItem('userInfo', JSON.stringify({
+      id: response.data.userId,
+      email: userData.email,
+      name: userData.name
+    }));
 
-    return user;
+    return response.data;
   } catch (error) {
-    console.error('Erreur lors de la connexion:', error);
-    throw error;
+    const errorData = error.response?.data;
+    console.error('[REGISTER]', errorData || error.message);
+    throw new Error(errorData?.error || errorData?.message || "Échec de l'inscription");
   }
 };
 
-
-// Fonction pour récupérer les infos de l'utilisateur stockées
-export const getUserInfo = async () => {
+// 3. Service de connexion (version optimisée)
+export const login = async ({ email, password }) => {
   try {
-    const userInfo = await AsyncStorage.getItem('userInfo');
-    return userInfo ? JSON.parse(userInfo) : null;
+    const response = await axios.post(`${API_URL}/login`, { 
+      email: email.trim(),
+      password 
+    });
+
+    console.log('[LOGIN RESPONSE]', response.data); // Debug
+
+    if (!response.data.token) {
+      throw new Error('Réponse serveur invalide');
+    }
+
+    await AsyncStorage.multiSet([
+      ['userToken', response.data.token],
+      ['userInfo', JSON.stringify({
+        id: response.data.userId,
+        email: email.trim()
+      })]
+    ]);
+
+    return { 
+      token: response.data.token,
+      userId: response.data.userId 
+    };
   } catch (error) {
-    console.error('Erreur lors de la récupération des infos utilisateur:', error);
-    return null;
+    const serverError = error.response?.data?.error;
+    console.error('[LOGIN ERROR]', serverError || error.message);
+    throw new Error(serverError || 'Échec de la connexion');
   }
 };
 
-// Fonction pour récupérer le token stocké
+// 4. Gestion de session
 export const getToken = async () => {
   try {
     return await AsyncStorage.getItem('userToken');
   } catch (error) {
-    console.error('Erreur lors de la récupération du token:', error);
+    console.error('[TOKEN ERROR]', error);
     return null;
   }
 };
 
-// Fonction pour se déconnecter
+export const getUserInfo = async () => {
+  try {
+    const info = await AsyncStorage.getItem('userInfo');
+    return info ? JSON.parse(info) : null;
+  } catch (error) {
+    console.error('[USER INFO ERROR]', error);
+    return null;
+  }
+};
+
 export const logout = async () => {
   try {
-    await AsyncStorage.removeItem('userToken');
-    await AsyncStorage.removeItem('userInfo');
+    await AsyncStorage.multiRemove(['userToken', 'userInfo']);
   } catch (error) {
-    console.error('Erreur lors de la déconnexion:', error);
+    console.error('[LOGOUT ERROR]', error);
     throw error;
   }
 };
