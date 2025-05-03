@@ -8,63 +8,38 @@ const Announcement = require('./Announcement');
 const Event = require('./Event');
 const Attendance = require('./Attendance');
 const Role = require('./Role');
-const GroupRole = require('./GroupRole');
-const MemberGroupRole = require('./MemberGroupRole');
+const Department = require('./Department');
 
 // 1. Relations Membres <-> Rôles
 Member.belongsTo(Role, {
   foreignKey: 'roleId',
-  onDelete: 'SET NULL', // Garde les membres si rôle supprimé
-  as: 'globalRole' // Alias pour les requêtes
+  onDelete: 'NO ACTION', 
+  as: 'globalRole'
 });
 
 Role.hasMany(Member, {
   foreignKey: 'roleId',
+  onDelete: 'NO ACTION'
+});
+
+// 2. Relations Département <-> Groupes
+Department.hasMany(Group, {
+  foreignKey: 'departmentId',
   onDelete: 'SET NULL'
 });
 
-// 2. Système de rôles par groupe
-GroupRole.belongsTo(Group, {
-  foreignKey: 'groupId',
-  onDelete: 'CASCADE' // Supprime les rôles si groupe supprimé
+Group.belongsTo(Department, {
+  foreignKey: 'departmentId',
+  onDelete: 'SET NULL'
 });
 
-Group.hasMany(GroupRole, {
-  foreignKey: 'groupId',
-  as: 'customRoles'
-});
 
-// 3. Assignation des rôles aux membres
-MemberGroupRole.belongsTo(GroupRole, {
-  foreignKey: 'groupRoleId',
-  onDelete: 'CASCADE'
-});
-
-MemberGroupRole.belongsTo(Member, {
-  foreignKey: 'memberId',
-  onDelete: 'CASCADE'
-});
-
-// 4. Relations Many-to-Many avec contraintes
-Member.belongsToMany(Group, {
-  through: MemberGroupRole,
-  foreignKey: 'memberId',
-  otherKey: 'groupId',
-  onDelete: 'CASCADE'
-});
-
-Group.belongsToMany(Member, {
-  through: MemberGroupRole,
-  foreignKey: 'groupId',
-  otherKey: 'memberId',
-  onDelete: 'CASCADE'
-});
 
 // 5. Relations Annonces/Événements
 Announcement.belongsTo(Member, {
   foreignKey: 'authorId',
   as: 'author',
-  onDelete: 'SET NULL' // Garde l'annonce si membre supprimé
+  onDelete: 'SET NULL'
 });
 
 Member.hasMany(Announcement, {
@@ -75,12 +50,20 @@ Member.hasMany(Announcement, {
 // 6. Présence aux événements
 Attendance.belongsTo(Event, {
   foreignKey: 'eventId',
-  onDelete: 'CASCADE' // Supprime les présences si événement supprimé
+  onDelete: 'CASCADE'
 });
 
 Attendance.belongsTo(Member, {
   foreignKey: 'memberId',
   onDelete: 'CASCADE'
+});
+
+Event.hasMany(Attendance, {
+  foreignKey: 'eventId'
+});
+
+Member.hasMany(Attendance, {
+  foreignKey: 'memberId'
 });
 
 // Ajouter des index pour les recherches
@@ -99,6 +82,5 @@ module.exports = {
   Event,
   Attendance,
   Role,
-  GroupRole,
-  MemberGroupRole
+  Department 
 };

@@ -6,8 +6,8 @@ const router = express.Router();
 
 router.get('/', auth, getAnnouncements);
 router.post('/', auth, createAnnouncement);
-router.get('/:id', auth, getAnnouncementById); // Nouvelle route
-router.put('/:id', auth, updateAnnouncement); // Nouvelle route
-router.delete('/:id', auth, deleteAnnouncement); // Nouvelle route
+router.get('/:id', auth, getAnnouncementById); 
+router.put('/:id', auth, updateAnnouncement); 
+router.delete('/:id', auth, deleteAnnouncement); 
 
 module.exports = router;

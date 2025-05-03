@@ -1,90 +1,128 @@
-const { Member, Group } = require('../models');
-const bcrypt = require('bcrypt');
+const { Member, Group, Role } = require("../models");
+const bcrypt = require("bcrypt");
 
-// Récupérer tous les membres avec leurs groupes
+// Validation des champs obligatoires à la création
+const REQUIRED_FIELDS = [
+  'name', 
+  'email', 
+  'password', 
+  'gender', 
+  'birth_date',
+  'contact'
+];
+
 exports.getMembers = async (req, res) => {
   try {
-    const members = await Member.findAll({ include: Group });
+    const members = await Member.findAll({ 
+      include: [
+        { model: Group },
+        { model: Role, as: 'globalRole' }
+      ],
+      attributes: { exclude: ['password'] } 
+    });
     res.status(200).json(members);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erreur de récupération des membres" });
   }
 };
 
-// Créer un nouveau membre avec un rôle par défaut (Membre = ID 1)
 exports.createMember = async (req, res) => {
-  const { name, email, password, groupId } = req.body;
+  const missingFields = REQUIRED_FIELDS.filter(field => !req.body[field]);
   
-  try {
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const member = await Member.create({
-      name,
-      email,
-      password: hashedPassword,
-      roleId: 1,  // Forçage du rôle "Membre" avec ID 1
-      groupId: groupId || null  // Si groupId est vide, on met null
+  if (missingFields.length > 0) {
+    return res.status(400).json({
+      error: "Champs manquants",
+      missing: missingFields
     });
+  }
 
-    res.status(201).json(member);
+  try {
+    const { email } = req.body;
+    
+    // Vérification de l'unicité de l'email
+    const exists = await Member.findOne({ where: { email } });
+    if (exists) {
+      return res.status(409).json({ error: "Cet email est déjà utilisé" });
+    }
+
+    // Hachage sécurisé du mot de passe
+    const hashedPassword = await bcrypt.hash(req.body.password, 12);
+    
+    const newMember = {
+      ...req.body,
+      password: hashedPassword,
+      roleId: 1, 
+      baptism_location: req.body.baptism_location || null,
+      belongs_to_group: Boolean(req.body.groupId) 
+    };
+
+    const member = await Member.create(newMember);
+    
+    // Ne pas renvoyer le mot de passe dans la réponse
+    const { password, ...safeMember } = member.get({ plain: true });
+    res.status(201).json(safeMember);
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(400).json({
+      error: "Erreur de création",
+      details: error.errors?.map(e => e.message)
+    });
   }
 };
 
-
-
-// Récupérer un membre par son ID
 exports.getMemberById = async (req, res) => {
   try {
-    const member = await Member.findByPk(req.params.id, { include: Group });
-    if (!member) {
-      return res.status(404).json({ message: 'Membre non trouvé' });
-    }
-    res.status(200).json(member);
+    const member = await Member.findByPk(req.params.id, {
+      include: [
+        { model: Group },
+        { model: Role, as: 'globalRole' }
+      ],
+      attributes: { exclude: ['password'] }
+    });
+
+    member 
+      ? res.status(200).json(member)
+      : res.status(404).json({ error: "Membre non trouvé" });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erreur de recherche" });
   }
 };
 
-// Mettre à jour un membre
 exports.updateMember = async (req, res) => {
-  const { name, email, password, role, groupId } = req.body;
-
   try {
     const member = await Member.findByPk(req.params.id);
-    if (!member) {
-      return res.status(404).json({ message: 'Membre non trouvé' });
-    }
+    
+    const updates = {
+      gender: req.body.gender,
+      birth_date: req.body.birth_date,
+      is_church_member: req.body.is_church_member,
+      is_baptized: req.body.is_baptized,
+      baptism_date: req.body.baptism_date,
+      baptism_location: req.body.baptism_location
+    };
 
-    // Mettre à jour les champs
-    member.name = name || member.name;
-    member.email = email || member.email;
-    member.role = role || member.role;
-    member.groupId = groupId || member.groupId;
-
-    // Hacher le mot de passe si fourni
-    if (password) {
-      member.password = await bcrypt.hash(password, 10);
-    }
-
-    await member.save();
-    res.status(200).json(member);
+    await member.update(updates);
+    
+    const { password, ...safeMember } = member.toJSON();
+    res.json(safeMember);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(400).json({ error: error.message });
   }
 };
 
-// Supprimer un membre
 exports.deleteMember = async (req, res) => {
   try {
-    const member = await Member.findByPk(req.params.id);
-    if (!member) {
-      return res.status(404).json({ message: 'Membre non trouvé' });
-    }
-    await member.destroy();
-    res.status(204).json();
+    const deleted = await Member.destroy({
+      where: { id: req.params.id },
+      limit: 1
+    });
+
+    deleted 
+      ? res.status(204).end()
+      : res.status(404).json({ error: "Membre non trouvé" });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Échec de suppression" });
   }
 };

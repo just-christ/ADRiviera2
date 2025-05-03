@@ -19,6 +19,10 @@ const Event = sequelize.define('event', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  Price: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+  }
 });
 
 module.exports = Event;

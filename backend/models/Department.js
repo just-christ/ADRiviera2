@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
 
-const GroupRole = sequelize.define('grouprole', {
+const Department = sequelize.define('department', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -10,10 +10,11 @@ const GroupRole = sequelize.define('grouprole', {
   name: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true,
   },
-}, {
-    timestamps: false,
+  description: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  }
 });
 
-module.exports = GroupRole;
+module.exports = Department;

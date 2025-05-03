@@ -15,6 +15,10 @@ const Group = sequelize.define('group', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  departmentId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  }
 });
 
 module.exports = Group;

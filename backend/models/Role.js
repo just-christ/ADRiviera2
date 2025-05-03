@@ -12,7 +12,7 @@ const Role = sequelize.define('role', {
     allowNull: false,
   },
 }, {
-  timestamps: false, // Pas besoin de `createdAt` et `updatedAt` pour un rôle
+  timestamps: false,
 });
 
 module.exports = Role;

@@ -4,6 +4,7 @@ const app = require('./app');
 const swaggerDocs = require('./swagger');
 const { Role } = require('./models');
 
+require('dotenv').config();
 
 // Configuration des couleurs pour les logs
 const log = {
@@ -14,26 +15,25 @@ const log = {
 
 async function initializeDatabase() {
   try {
-    const forceSync = process.env.NODE_ENV !== 'production';
+    // Correction ici : utiliser === au lieu de !==
+    const forceSync = process.env.NODE_ENV === 'development'; // ⚠️ Changement crucial
     
     if (forceSync) {
       log.info('Synchronisation des modèles (mode développement)');
-      await sequelize.sync({ force: true });
+      await sequelize.sync({ force: true }); // Supprime et recrée les tables
       log.success('Base de données recréée');
+      
+      // Recréer les rôles après la suppression
+      // const roles = await Role.bulkCreate([
+      //   { name: 'Membre' },
+      //   { name: 'Secretaire' },
+      //   { name: 'Administrateur' }
+      // ]);
+      // log.success(`${roles.length} rôles recréés`);
     } else {
-      await sequelize.sync({ alter: true });
+      await sequelize.sync({ alter: true }); // Mode production sécurisé
       log.success('Base de données mise à jour (mode production)');
     }
-
-    const roles = await Role.bulkCreate([
-      { name: 'Membre' },
-      { name: 'Chef de Groupe' },
-      { name: 'Pasteur' },
-      { name: 'Secretaire' },
-      { name: 'Administrateur' }
-    ], { ignoreDuplicates: true });
-
-    log.success(`${roles.length} rôles prêts`);
 
   } catch (error) {
     log.error(`Échec de l'initialisation : ${error.message}`);
