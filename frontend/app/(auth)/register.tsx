@@ -8,44 +8,57 @@ import {
   Alert, 
   ActivityIndicator 
 } from 'react-native';
-import { register } from '../../src/services/authService';
 import { useRouter } from 'expo-router';
+import { register } from '../../src/services/authService';
 
 export default function RegisterScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [contact, setContact] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
   const handleRegister = async () => {
-    if (!firstName || !lastName || !email || !password) {
-      Alert.alert("Erreur", "Tous les champs sont requis.");
+    const missingFields = [];
+    if (!firstName) missingFields.push('Nom');
+    if (!lastName) missingFields.push('Prénom');
+    if (!email) missingFields.push('Email');
+    if (!password) missingFields.push('Mot de passe');
+    if (!contact) missingFields.push('Contact');
+
+    if (missingFields.length > 0) {
+      Alert.alert("Champs manquants", `Veuillez remplir : ${missingFields.join(', ')}`);
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      Alert.alert("Email invalide", "Veuillez entrer une adresse email valide");
       return;
     }
 
     if (password.length < 8) {
-      Alert.alert("Erreur", "Le mot de passe doit contenir au moins 8 caractères");
+      Alert.alert("Mot de passe faible", "Le mot de passe doit contenir au moins 8 caractères");
       return;
     }
 
     setLoading(true);
 
     try {
-      const fullName = `${firstName} ${lastName}`.trim();
       await register({ 
-        name: fullName, 
-        email, 
-        password, 
-        role: 'member' 
+        firstName, 
+        lastName,
+        email,
+        password,
+        contact
       });
       
-      Alert.alert('Succès', 'Inscription réussie !');
-      router.replace('/(auth)/login');
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Erreur inconnue';
-      Alert.alert('Erreur', message);
+      router.push('/(auth)/otherInfo');
+    } catch (error) {
+      Alert.alert("Erreur", error instanceof Error ? error.message : "Une erreur inconnue s'est produite");
     } finally {
       setLoading(false);
     }
@@ -61,28 +74,40 @@ export default function RegisterScreen() {
         placeholderTextColor="#94a3b8"
         value={firstName}
         onChangeText={setFirstName}
+        autoCapitalize="words"
       />
 
       <TextInput
         style={styles.input}
-        placeholder="Prénoms"
+        placeholder="Prénom"
         placeholderTextColor="#94a3b8"
         value={lastName}
         onChangeText={setLastName}
+        autoCapitalize="words"
       />
 
       <TextInput
         style={styles.input}
-        placeholder="Adresse email"
+        placeholder="Email"
         placeholderTextColor="#94a3b8"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
+        autoCapitalize="none"
       />
 
       <TextInput
         style={styles.input}
-        placeholder="Mot de passe (8 caractères min)"
+        placeholder="Téléphone"
+        placeholderTextColor="#94a3b8"
+        value={contact}
+        onChangeText={setContact}
+        keyboardType="phone-pad"
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Mot de passe"
         placeholderTextColor="#94a3b8"
         value={password}
         onChangeText={setPassword}
@@ -97,7 +122,7 @@ export default function RegisterScreen() {
         {loading ? (
           <ActivityIndicator color="white" />
         ) : (
-          <Text style={styles.buttonText}>S'inscrire</Text>
+          <Text style={styles.buttonText}>Continuer</Text>
         )}
       </TouchableOpacity>
 
@@ -156,6 +181,5 @@ const styles = StyleSheet.create({
     color: '#2563eb',
     textAlign: 'center',
     fontSize: 14,
-    textDecorationLine: 'underline',
   },
 });

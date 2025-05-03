@@ -129,6 +129,5 @@ const styles = StyleSheet.create({
     color: '#2563eb',
     textAlign: 'center',
     fontSize: 14,
-    textDecorationLine: 'underline',
   },
 });
