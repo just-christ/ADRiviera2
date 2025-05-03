@@ -1,0 +1,13 @@
+nodemodules
+dist
+coverage
+*.log
+*.tsbuildinfo
+*.tgz
+*.zip
+*.tar.gz
+*.tgz
+*.tar
+*.tgz   
+*.tar.gz
+*.tgz
